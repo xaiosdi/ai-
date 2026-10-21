@@ -1,0 +1,78 @@
+name: 刷新 CDN 缓存
+
+# jsDelivr 会把 @main 引用缓存 12 小时以上。
+# 本仓内容更新后自动 purge，让 AI 通过 jsDelivr 读到的始终是最新版本。
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  purge:
+    name: 清除 jsDelivr 缓存
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出
+        uses: actions/checkout@v4
+
+      - name: 逐个 purge 变更文件
+        run: |
+          set -uo pipefail
+          OWNER="xaiosdi"
+          REPO="ai-"
+
+          # 取本次推送改动过的文件；首次/手动触发时退化为全量
+          if [ "${{ github.event_name }}" = "push" ]; then
+            FILES=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "")
+          else
+            FILES=""
+          fi
+          if [ -z "$FILES" ]; then
+            FILES=$(git ls-files)
+          fi
+
+          OK=0; FAIL=0
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            # URL 编码（含空格/中文路径）
+            ENC=$(python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1]))" "$f")
+            URL="https://purge.jsdelivr.net/gh/$OWNER/$REPO@main/$ENC"
+            CODE=$(curl -sS -o /tmp/p.json -w '%{http_code}' "$URL" 2>/dev/null || echo 000)
+            if [ "$CODE" = "200" ]; then
+              echo "✅ purge $f"
+              OK=$((OK+1))
+            else
+              echo "⚠️ purge $f -> HTTP $CODE"
+              head -c 200 /tmp/p.json 2>/dev/null || true
+              echo
+              FAIL=$((FAIL+1))
+            fi
+          done <<< "$FILES"
+
+          echo "---"
+          echo "成功 $OK 个，失败 $FAIL 个"
+          # purge 失败不视为构建失败：CDN 只是加速层，raw/API 通道仍在
+          if [ "$OK" = "0" ]; then
+            echo "::warning::没有任何 purge 成功，jsDelivr 可能仍在返回缓存内容"
+          fi
+
+      - name: 验证 purge 结果
+        run: |
+          set -uo pipefail
+          URL="https://cdn.jsdelivr.net/gh/xaiosdi/ai-@main/llms.txt"
+          for i in 1 2 3 4 5; do
+            sleep 5
+            BODY=$(curl -sS "$URL" 2>/dev/null || echo "")
+            AGE=$(curl -sS -I "$URL" 2>/dev/null | grep -i '^age:' | tr -d '\r' || echo "age: ?")
+            echo "尝试 $i：$AGE，长度 ${#BODY}"
+            if [ -n "$BODY" ]; then
+              echo "$BODY" | head -3
+              echo "✅ jsDelivr 可读，长度 ${#BODY}"
+              exit 0
+            fi
+          done
+          echo "::warning::jsDelivr 验证未通过，但不影响 raw/API 通道"

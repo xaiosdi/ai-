@@ -92,4 +92,11 @@ curl -s -X PATCH -H "Authorization: Bearer $PAT" -H "Content-Type: application/j
 
 ## 快速触发语（用户可复制给任何 AI）
 
-> 跑一下档案蒸馏工作流：https://raw.githubusercontent.com/xaiosdi/ai-/main/workflows/distill.md
+> 跑一下档案蒸馏工作流：https://cdn.jsdelivr.net/gh/xaiosdi/ai-@main/workflows/distill.md
+
+若上面这条打不开，依次试：
+
+1. `https://raw.githubusercontent.com/xaiosdi/ai-/main/workflows/distill.md`
+2. `https://api.github.com/repos/xaiosdi/ai-/contents/workflows/distill.md`（内容在 `content` 字段，base64 需解码；匿名 60 次/小时额度）
+
+三条都不通也没关系——用户可以直接把本文件全文粘贴给你，效果一样。

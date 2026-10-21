@@ -21,8 +21,14 @@
 
 | 顺位 | 地址模板 | 说明 |
 |---|---|---|
-| ① | `https://cdn.jsdelivr.net/gh/xaiosdi/ai-@main/<路径>` | 首选。免费 CDN，无请求额度限制，支持 CORS |
-| ② | `https://raw.githubusercontent.com/xaiosdi/ai-/main/<路径>` | 备选，部分网络不可达 |
-| ③ | `https://api.github.com/repos/xaiosdi/ai-/contents/<路径>` | 最后手段。`content` 字段是 base64；匿名仅 60 次/小时 |
+| ① | `https://raw.githubusercontent.com/xaiosdi/ai-/main/<路径>` | 直连最快，但部分网络（国内/企业网/某些沙箱）连接被重置 |
+| ② | `https://cdn.jsdelivr.net/gh/xaiosdi/ai-@main/<路径>` | 免费 CDN，无请求额度，支持 CORS；**首次回源会偶发 301 跳转，必须跟随** |
+| ③ | `https://api.github.com/repos/xaiosdi/ai-/contents/<路径>` | 最后手段。`content` 是 base64；匿名仅 60 次/小时 |
 
-> jsDelivr 有缓存（约 12 小时），刚更新的内容可能延迟可见。
+**关键：遇到 301/302/307 要跟随 `Location` 取第二次**，不跟随就会误判"不可用"。
+
+> jsDelivr 有缓存（最长 12 小时）。要最新内容：优先用 ①，或先访问
+> `https://purge.jsdelivr.net/gh/xaiosdi/ai-@main/<路径>` 刷新缓存。
+>
+> 列目录（不取文件）可用 `https://data.jsdelivr.com/v1/packages/gh/xaiosdi/ai-@main?structure=flat`，
+> 不跳转、不耗 GitHub 额度。

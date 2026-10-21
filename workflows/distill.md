@@ -78,10 +78,12 @@ curl -s -X PATCH -H "Authorization: Bearer $PAT" -H "Content-Type: application/j
 > 简单场景（只改一个文件）也可以用 Contents API 逐文件 PUT：先 GET 拿 `sha`，再 PUT `{"message","content","sha"}`。但**多文件更新一律用上面的原子提交**，避免产生碎片化 commit。
 
 4. 推送完成后**回读验证**每个文件，向用户汇报：改了哪些文件、commit ID、core 剩余 token 预算
+5. **确认自动同步已生效**：`ai-core` 仓的 GitHub Action「档案聚合同步」会在 push 命中 `core/**` 或 `AGENTS.md` 后自动重建 `bundle/profile-bundle.md` 并同步到 Secret Gist（约 30-60 秒）。等待 1 分钟后回读 `bundle/STATUS.md`，确认 `gist 同步状态 = ok`；若为 `failed`，把 `gist 详情` 里的原因告诉用户（例如 `GIST_TOKEN` secret 缺失或过期），**不要自行改用其他令牌绕过**
 5. 提醒用户：可撤销本次 PAT（或保留至过期）
 
 ## 硬性规则
 
+- **只推 core/ 和 journal/，不要手动改 `bundle/`**：`bundle/` 是 Action 的自动产物，手改会被覆盖
 - **未确认不推送**：用户没说"确认 / 应用 / 就要这些"之前，不调用任何 GitHub API
 - **不改 AGENTS.md**：入口规则文件的改动需用户单独明确指示
 - **不替用户发明事实**：每条候选必须能在对话中找到出处，找不到就标"待用户确认"

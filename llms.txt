@@ -2,6 +2,14 @@
 
 > 个人核心档案的公开补充：主题档案、流水记录与维护工作流。
 
+## 读取地址（按顺序尝试，第一个通的就用）
+
+```
+① https://cdn.jsdelivr.net/gh/xaiosdi/ai-@main/<路径>      ← 首选：无额度限制、支持 CORS
+② https://raw.githubusercontent.com/xaiosdi/ai-/main/<路径>  ← 备选（部分网络环境不可达）
+③ https://api.github.com/repos/xaiosdi/ai-/contents/<路径>   ← 最后手段（content 为 base64；匿名 60 次/小时）
+```
+
 ## 主题档案（按需读取，先看文件头部元信息）
 - topics/ 目录，每文件一个主题
 

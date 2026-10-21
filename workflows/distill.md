@@ -2,7 +2,8 @@
 
 > **触发**：当用户说"跑一下档案蒸馏 / 更新我的档案 / 跑 distill 工作流"时，严格按本流程执行。
 > **适用**：任何 AI Agent（Claude / ChatGPT / Gemini / DeepSeek 等）——能读网页、能调 HTTPS 即可，无需特殊工具。
-> **形态**：两轮交互，约 5-10 分钟。第一轮出候选清单，用户勾选；第二轮确认后推送。
+> **形态**：两轮交互，约 5-10 分钟。第一轮出候选清单，用户勾选；第二轮确认后推送（多文件用 Git Data API 原子提交）。
+> **提示**：在有上下文的对话里执行效果最好——新会话没有历史时，需口头补充本周要点。
 
 ## 档案结构（先了解）
 
@@ -42,22 +43,41 @@
 
 1. 按用户选择生成目标文件的**更新后完整内容**——用户没选的条目一律不动
 2. 申请 GitHub 写权限：请用户提供 fine-grained PAT（仅 `ai-core` + `ai-` 两个仓库、Contents: Read and write）。用户没有或拒绝 → 只输出更新后的完整文件内容，提示用户自行保存，流程到此为止
-3. 逐文件推送（Contents API：先拿 sha，再 PUT）：
+3. **原子提交（推荐：Git Data API，一次 commit 写入多个文件）**：
 
 ```bash
-# 拿当前文件 sha（journal 等新文件跳过此步）
-curl -s -H "Authorization: Bearer $PAT" \
-  "https://api.github.com/repos/xaiosdi/ai-core/contents/core/communication.md"
+# 0) 取当前分支 HEAD 与 base tree
+HEAD=$(curl -s -H "Authorization: Bearer $PAT" \
+  https://api.github.com/repos/xaiosdi/ai-core/git/ref/heads/main | jq -r .object.sha)
+BASE=$(curl -s -H "Authorization: Bearer $PAT" \
+  https://api.github.com/repos/xaiosdi/ai-core/git/commits/$HEAD | jq -r .tree.sha)
 
-# 推送更新（content 为 base64、单行无换行）
-curl -s -X PUT -H "Authorization: Bearer $PAT" -H "Content-Type: application/json" \
-  "https://api.github.com/repos/xaiosdi/ai-core/contents/core/communication.md" \
-  -d '{"message":"蒸馏更新：communication.md","content":"<base64>","sha":"<sha>"}'
+# 1) 每个变更文件生成一个 blob（对每个文件重复）
+BLOB=$(curl -s -X POST -H "Authorization: Bearer $PAT" -H "Content-Type: application/json" \
+  https://api.github.com/repos/xaiosdi/ai-core/git/blobs \
+  -d "{\"content\":$(jq -Rs . < core/communication.md),\"encoding\":\"utf-8\"}" | jq -r .sha)
+
+# 2) 一个 tree 里装下全部变更文件
+TREE=$(curl -s -X POST -H "Authorization: Bearer $PAT" -H "Content-Type: application/json" \
+  https://api.github.com/repos/xaiosdi/ai-core/git/trees \
+  -d "{\"base_tree\":\"$BASE\",\"tree\":[{\"path\":\"core/communication.md\",\"mode\":\"100644\",\"type\":\"blob\",\"sha\":\"$BLOB\"}]}" | jq -r .sha)
+
+# 3) 生成 commit
+COMMIT=$(curl -s -X POST -H "Authorization: Bearer $PAT" -H "Content-Type: application/json" \
+  https://api.github.com/repos/xaiosdi/ai-core/git/commits \
+  -d "{\"message\":\"蒸馏更新\",\"tree\":\"$TREE\",\"parents\":[\"$HEAD\"]}" | jq -r .sha)
+
+# 4) 快进更新分支（force:false，绝不强推）
+curl -s -X PATCH -H "Authorization: Bearer $PAT" -H "Content-Type: application/json" \
+  https://api.github.com/repos/xaiosdi/ai-core/git/refs/heads/main \
+  -d "{\"sha\":\"$COMMIT\",\"force\":false}"
 ```
 
 路径对照：`ai-core` 仓 → `core/{identity,communication,preferences,context}.md`；`ai-` 仓 → `journal/YYYY-MM-DD.md`。
 
-4. 推送完成后**回读验证**每个文件，向用户汇报：改了哪些文件、各自 commit、core 剩余 token 预算
+> 简单场景（只改一个文件）也可以用 Contents API 逐文件 PUT：先 GET 拿 `sha`，再 PUT `{"message","content","sha"}`。但**多文件更新一律用上面的原子提交**，避免产生碎片化 commit。
+
+4. 推送完成后**回读验证**每个文件，向用户汇报：改了哪些文件、commit ID、core 剩余 token 预算
 5. 提醒用户：可撤销本次 PAT（或保留至过期）
 
 ## 硬性规则

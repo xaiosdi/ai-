@@ -5,10 +5,17 @@
 ## 读取地址（按顺序尝试，第一个通的就用）
 
 ```
-① https://cdn.jsdelivr.net/gh/xaiosdi/ai-@main/<路径>      ← 首选：无额度限制、支持 CORS
-② https://raw.githubusercontent.com/xaiosdi/ai-/main/<路径>  ← 备选（部分网络环境不可达）
-③ https://api.github.com/repos/xaiosdi/ai-/contents/<路径>   ← 最后手段（content 为 base64；匿名 60 次/小时）
+① https://raw.githubusercontent.com/xaiosdi/ai-/main/<路径>
+② https://cdn.jsdelivr.net/gh/xaiosdi/ai-@main/<路径>
+③ https://api.github.com/repos/xaiosdi/ai-/contents/<路径>
 ```
+
+判定规则：
+- 遇到 301/302/307 **必须跟随 Location 再取**（jsDelivr 首次回源会偶发跳转到 raw）
+- ② 有缓存（最长 12h），要最新内容用 ① 或先访问 `https://purge.jsdelivr.net/gh/xaiosdi/ai-@main/<路径>`
+- ③ 的 `content` 是 base64 需解码；匿名仅 60 次/小时，仅作最后手段
+- 列目录用 `https://data.jsdelivr.com/v1/packages/gh/xaiosdi/ai-@main?structure=flat`
+- 哪条通取决于所在网络，三条都不通就跳过，不要因此中断正常工作
 
 ## 主题档案（按需读取，先看文件头部元信息）
 - topics/ 目录，每文件一个主题

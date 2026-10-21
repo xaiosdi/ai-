@@ -14,3 +14,15 @@
 任何 AI 读取它最简单的方式是一条**免登录合并链接**（Secret Gist 汇总了 `AGENTS.md` + `core/` 四个文件）——链接在私有仓的 `AGENTS.md` 顶部和 `README.md` 里，需要时去取。
 
 > 该链接不可被搜索引擎枚举，但**拿到链接即可读取**，所以本公开仓库不写它。
+
+## 读取地址（重要）
+
+`raw.githubusercontent.com` 在部分网络环境下不可达（连接被重置）。请按顺序尝试：
+
+| 顺位 | 地址模板 | 说明 |
+|---|---|---|
+| ① | `https://cdn.jsdelivr.net/gh/xaiosdi/ai-@main/<路径>` | 首选。免费 CDN，无请求额度限制，支持 CORS |
+| ② | `https://raw.githubusercontent.com/xaiosdi/ai-/main/<路径>` | 备选，部分网络不可达 |
+| ③ | `https://api.github.com/repos/xaiosdi/ai-/contents/<路径>` | 最后手段。`content` 字段是 base64；匿名仅 60 次/小时 |
+
+> jsDelivr 有缓存（约 12 小时），刚更新的内容可能延迟可见。
